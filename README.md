@@ -14,4 +14,6 @@ Controls:
 8) Buttons -/= - decrease/increase cell size
 9) Page down/Page up - decrease/increase cell padding (zero is minimum)
 10) Home/End - decrease/increase game speed
+12) Ctrl-C - open window with encoded state of game
+13) Ctrl-V - open window to restore game state from encoded string, gainded from 12)
 11) Escape to quit

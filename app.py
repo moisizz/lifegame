@@ -4,6 +4,9 @@ from pygame import Surface
 from pygame.locals import *
 from life import LifeGame
 import itertools
+from Tkinter import Tk, Button, Entry, Text, StringVar, END
+import pickle
+import base64
 
 
 GRAY  = (230, 230, 230)
@@ -23,10 +26,10 @@ class Application(object):
         pygame.init()
         self.FPSCLOCK = pygame.time.Clock()
         pygame.display.set_caption("Conway's Game of Life (paused)")
-        self.init_board(default_rows, default_cols, default_fps, default_cell_size, default_cell_padding, first=True)
+        self.init_board(default_rows, default_cols, default_fps, default_cell_size, default_cell_padding, init_game=True)
         self.main()
 
-    def init_board(self, rows, cols, fps, cell_size, cell_padding, first=False):
+    def init_board(self, rows, cols, fps, cell_size, cell_padding, init_game=None, alife_cells=None):
         config = {'FPS': fps, 'CELL_SIZE': cell_size, 'PADDING': cell_padding}
 
         width = cols * config['CELL_SIZE'] + config['PADDING'] * (cols + 1)
@@ -38,8 +41,12 @@ class Application(object):
         self.bg = Surface((width, height))
         self.bg.fill(GRAY)
 
-        if first or rows != self.life.rows or cols != self.life.cols:
+        if init_game or rows != self.life.rows or cols != self.life.cols:
             self.life = LifeGame(rows, cols)
+
+        if alife_cells:
+            for row, col in alife_cells:
+                self.life.change_cell(row, col, value=1)
 
         for row, col in itertools.product(range(rows), range(cols)):
             self.draw_cell(row, col)
@@ -84,6 +91,53 @@ class Application(object):
             if (row % step == 0) or (col % step == 0):
                 self.change_cell(row, col)
 
+    def copy_state(self):
+        state = {
+            'rows': self.life.rows,
+            'cols': self.life.cols,
+            'config': self.config,
+            'alife_cells': self.life.alife_cells
+        }
+
+        root = Tk()
+        encoded = base64.b64encode(pickle.dumps(state))
+        text = Text(root)
+        text.insert(END, encoded)
+        text.pack()
+
+        root.mainloop()
+
+    def restore_state(self):
+        def restore():
+            self.clear_board()
+            try:
+                encoded_state = entry.get().strip()
+                root.destroy()
+
+                pickled_state = base64.b64decode(encoded_state)
+                state = pickle.loads(pickled_state)
+                self.init_board(
+                    state['rows'],
+                    state['cols'],
+                    state['config']['FPS'],
+                    state['config']['CELL_SIZE'],
+                    state['config']['PADDING'],
+                    alife_cells=state['alife_cells']
+                )
+            except:
+                pass
+
+        root = Tk()
+        entry = Entry(root)
+        button = Button(root, text="Restore", command=restore)
+        button.pack()
+        entry.pack()
+
+        root.mainloop()
+
+    def on_button(self):
+        print self.entry.get()
+
     def main(self):
         started = False
 
@@ -116,7 +170,7 @@ class Application(object):
                     elif key_name in '123456789':
                         self.lattice_fill(int(pygame.key.name(event.key)))
 
-                    elif key_name in ('up', 'right', 'down', 'left', '-', '=', 'page up', 'page down', 'home', 'end'):
+                    elif key_name in ('up', 'right', 'down', 'left', '-', '=', 'page up', 'page down', 'home', 'end', 'c', u'с', 'v', u'м'):
                         rows, cols = self.life.rows, self.life.cols
                         config = self.config
                         if key_name == 'up' and rows > 2:
@@ -139,6 +193,14 @@ class Application(object):
                             config['FPS'] -= 1
                         elif key_name == 'end':
                             config['FPS'] += 1
+                        elif key_name == 'c':
+                            m = pygame.key.get_mods()
+                            if m & KMOD_CTRL:
+                                self.copy_state()
+                        elif key_name == 'v':
+                            m = pygame.key.get_mods()
+                            if m & KMOD_CTRL:
+                                self.restore_state()
 
                         args = (rows, cols, self.config['FPS'], self.config['CELL_SIZE'], self.config['PADDING'])
                         self.init_board(*args)
@@ -177,7 +239,10 @@ class Application(object):
 
             self.screen.blit(self.bg, (0, 0))
             pygame.display.update()
-            self.FPSCLOCK.tick(self.config['FPS'])
+            if drawing or erasing:
+                self.FPSCLOCK.tick(120)
+            else:
+                self.FPSCLOCK.tick(self.config['FPS'])
 
 
 if __name__ == '__main__':
