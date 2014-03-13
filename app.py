@@ -13,8 +13,8 @@ WHITE = (255, 255, 255)
 
 class Application(object):
     def __init__(self):
-        default_rows = 20
-        default_cols = 20
+        default_rows = 50
+        default_cols = 50
 
         default_fps = 15
         default_cell_size = 10
@@ -22,7 +22,7 @@ class Application(object):
 
         pygame.init()
         self.FPSCLOCK = pygame.time.Clock()
-        pygame.display.set_caption('"Life" game')
+        pygame.display.set_caption("Conway's Game of Life (paused)")
         self.init_board(default_rows, default_cols, default_fps, default_cell_size, default_cell_padding, first=True)
         self.main()
 
@@ -101,7 +101,11 @@ class Application(object):
                     key_name = pygame.key.name(event.key)
 
                     if event.key == K_SPACE:
-                         started = not started
+                        started = not started
+                        if started:
+                            pygame.display.set_caption("Conway's Game of Life (started)")
+                        else:
+                            pygame.display.set_caption("Conway's Game of Life (paused)")
 
                     elif event.key == K_BACKSPACE:
                         self.clear_board()
