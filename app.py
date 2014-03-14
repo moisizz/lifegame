@@ -5,6 +5,7 @@ from pygame.locals import *
 from life import LifeGame
 import itertools
 from Tkinter import Tk, Button, Entry, Text, StringVar, END
+import tkFileDialog
 import pickle
 import base64
 
@@ -25,7 +26,6 @@ class Application(object):
 
         pygame.init()
         self.FPSCLOCK = pygame.time.Clock()
-        pygame.display.set_caption("Conway's Game of Life (paused)")
         self.init_board(default_rows, default_cols, default_fps, default_cell_size, default_cell_padding, init_game=True)
         self.main()
 
@@ -37,6 +37,7 @@ class Application(object):
 
         self.config = config
 
+        self.set_caption(False)
         self.screen = pygame.display.set_mode((width, height))
         self.bg = Surface((width, height))
         self.bg.fill(GRAY)
@@ -101,42 +102,108 @@ class Application(object):
 
         root = Tk()
         encoded = base64.b64encode(pickle.dumps(state))
-        text = Text(root)
-        text.insert(END, encoded)
-        text.pack()
 
-        root.mainloop()
+        options = {}
+        options['defaultextension'] = '.txt'
+        options['filetypes'] = [('text files', '.txt')]
+        options['initialfile'] = 'board.txt'
+        options['parent'] = root
+        options['title'] = u'Сохранить доску'
+
+        filename = tkFileDialog.asksaveasfilename(**options)
+
+        if filename:
+            state_file = open(filename, 'w')
+            state_file.write(encoded)
+            state_file.close()
+
+        root.destroy()
 
     def restore_state(self):
-        def restore():
-            self.clear_board()
-            try:
-                encoded_state = entry.get().strip()
-                root.destroy()
-
-                pickled_state = base64.b64decode(encoded_state)
-                state = pickle.loads(pickled_state)
-                self.init_board(
-                    state['rows'],
-                    state['cols'],
-                    state['config']['FPS'],
-                    state['config']['CELL_SIZE'],
-                    state['config']['PADDING'],
-                    alife_cells=state['alife_cells']
-                )
-            except:
-                pass
-
         root = Tk()
-        entry = Entry(root)
-        button = Button(root, text="Restore", command=restore)
-        button.pack()
-        entry.pack()
 
-        root.mainloop()
+        options = {}
+        options['multiple'] = False
+        options['defaultextension'] = '.txt'
+        options['filetypes'] = [('text files', '.txt')]
+        options['parent'] = root
+        options['title'] = u'Восстановить доску'
 
-    def on_button(self):
-        print self.entry.get()
+        filename = tkFileDialog.askopenfilename(**options)
+        root.destroy()
+
+        if filename:
+            self.clear_board()
+            state_file = open(filename, 'r')
+            encoded_state = state_file.read().strip()
+            state_file.close()
+
+            pickled_state = base64.b64decode(encoded_state)
+            state = pickle.loads(pickled_state)
+            self.init_board(
+                state['rows'],
+                state['cols'],
+                state['config']['FPS'],
+                state['config']['CELL_SIZE'],
+                state['config']['PADDING'],
+                alife_cells=state['alife_cells']
+            )
+
+    def move_cells(self, direction):
+        alife_cells_list = list(self.life.alife_cells)
+        moved_alife_cells = set([])
+        rows, cols = self.life.rows, self.life.cols
+
+        if direction == 'up':
+            alife_cells_list.sort(key=lambda cell: cell[0])
+
+        elif direction == 'down':
+            alife_cells_list.sort(key=lambda cell: cell[0], reverse=True)
+
+        elif direction == 'left':
+            alife_cells_list.sort(key=lambda cell: cell[1])
+
+        elif direction == 'right':
+            alife_cells_list.sort(key=lambda cell: cell[1], reverse=True)
+
+        for cell in alife_cells_list:
+            if direction == 'up':
+                if cell[0] == 0:
+                    next_cell = (rows - 1, cell[1])
+                else:
+                    next_cell = (cell[0] - 1, cell[1])
+
+            elif direction == 'down':
+                if cell[0] == (rows - 1):
+                    next_cell = (0, cell[1])
+                else:
+                    next_cell = (cell[0] + 1, cell[1])
+
+            elif direction == 'left':
+                if cell[1] == 0:
+                    next_cell = (cell[0], cols - 1)
+                else:
+                    next_cell = (cell[0], cell[1] - 1)
+
+            elif direction == 'right':
+                if cell[1] == (cols - 1):
+                    next_cell = (cell[0], 0)
+                else:
+                    next_cell = (cell[0], cell[1] + 1)
+
+            moved_alife_cells.add(next_cell)
+
+        return moved_alife_cells
+
+    def set_caption(self, started):
+        title = "Conway's Game of Life. Speed: {0} ({1})"
+
+        if started:
+            started_str = 'started'
+        else:
+            started_str = 'paused'
+
+        pygame.display.set_caption(title.format(self.config['FPS'], started_str))
 
     def main(self):
         started = False
@@ -145,21 +212,26 @@ class Application(object):
         erasing = False
         drawed = set([])
 
+        arrow_keys = (K_UP, K_DOWN, K_LEFT, K_RIGHT)
+        numpad_arrow_keys = (K_KP8, K_KP2, K_KP4, K_KP6)
+        numpad_directions = {K_KP8: 'up', K_KP2: 'down', K_KP4: 'left', K_KP6: 'right'}
+
+        field_modify_keys = arrow_keys + numpad_arrow_keys + (
+            K_END, K_HOME,
+            K_PAGEUP, K_PAGEDOWN,
+            K_MINUS, K_EQUALS,
+        )
+
         while True:
             for event in pygame.event.get():
-                if event.type == QUIT or event.type == KEYUP and event.key == K_ESCAPE:
+                if event.type == QUIT:
                     pygame.quit()
                     sys.exit()
 
                 if event.type == KEYUP:
-                    key_name = pygame.key.name(event.key)
-
                     if event.key == K_SPACE:
                         started = not started
-                        if started:
-                            pygame.display.set_caption("Conway's Game of Life (started)")
-                        else:
-                            pygame.display.set_caption("Conway's Game of Life (paused)")
+                        self.set_caption(started)
 
                     elif event.key == K_BACKSPACE:
                         self.clear_board()
@@ -167,43 +239,60 @@ class Application(object):
                     elif event.key == K_RETURN:
                         self.random_fill()
 
-                    elif key_name in '123456789':
+                    elif pygame.key.name(event.key) in '123456789':
                         self.lattice_fill(int(pygame.key.name(event.key)))
 
-                    elif key_name in ('up', 'right', 'down', 'left', '-', '=', 'page up', 'page down', 'home', 'end', 'c', u'с', 'v', u'м'):
+                    elif event.key == K_s:
+                        if pygame.key.get_mods() & KMOD_CTRL:
+                            self.copy_state()
+                    elif event.key == K_r:
+                        if pygame.key.get_mods() & KMOD_CTRL:
+                            self.restore_state()
+
+                    elif event.key in field_modify_keys:
                         rows, cols = self.life.rows, self.life.cols
                         config = self.config
-                        if key_name == 'up' and rows > 2:
-                            rows -= 1
-                        elif key_name == 'down':
-                            rows += 1
-                        elif key_name == 'left' and cols > 2:
-                            cols -= 1
-                        elif key_name == 'right':
-                            cols += 1
-                        elif key_name == '-' and config['CELL_SIZE'] > 1:
+                        alife_cells = None
+
+                        if event.key in arrow_keys:
+                            if pygame.key.get_mods() & KMOD_SHIFT:
+                                delta = 10
+                                bound = 10
+                            else:
+                                delta = 1
+                                bound = 2
+                            if event.key == K_UP and rows > bound:
+                                rows -= delta
+                            elif event.key == K_DOWN:
+                                rows += delta
+                            elif event.key == K_LEFT and cols > bound:
+                                cols -= delta
+                            elif event.key == K_RIGHT:
+                                cols += delta
+
+                        if event.key in numpad_arrow_keys:
+                            alife_cells = self.move_cells(numpad_directions[event.key])
+                            self.clear_board()
+
+                        elif event.key == K_MINUS and config['CELL_SIZE'] > 1:
                             config['CELL_SIZE'] -= 1
-                        elif key_name == '=':
+                        elif event.key == K_EQUALS:
                             config['CELL_SIZE'] += 1
-                        elif key_name == 'page down' and config['PADDING'] > 0:
+
+                        elif event.key == K_PAGEDOWN and config['PADDING'] > 0:
                             config['PADDING'] -= 1
-                        elif key_name == 'page up':
+                        elif event.key == K_PAGEUP:
                             config['PADDING'] += 1
-                        elif key_name == 'home' and config['FPS'] > 1:
+
+                        elif event.key == K_HOME and config['FPS'] > 1:
                             config['FPS'] -= 1
-                        elif key_name == 'end':
+                            self.set_caption(started)
+                        elif event.key == K_END:
                             config['FPS'] += 1
-                        elif key_name == 'c':
-                            m = pygame.key.get_mods()
-                            if m & KMOD_CTRL:
-                                self.copy_state()
-                        elif key_name == 'v':
-                            m = pygame.key.get_mods()
-                            if m & KMOD_CTRL:
-                                self.restore_state()
+                            self.set_caption(started)
 
                         args = (rows, cols, self.config['FPS'], self.config['CELL_SIZE'], self.config['PADDING'])
-                        self.init_board(*args)
+                        self.init_board(*args, alife_cells=alife_cells)
 
                 elif event.type == MOUSEBUTTONDOWN and not started:
                     if event.button == 1:
