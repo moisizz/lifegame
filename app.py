@@ -222,8 +222,9 @@ class Application(object):
         drawed = set([])
 
         arrow_keys = (K_UP, K_DOWN, K_LEFT, K_RIGHT)
+        arrow_keys_directions = {K_UP: 'up', K_DOWN: 'down', K_LEFT: 'left', K_RIGHT: 'right'}
         numpad_arrow_keys = (K_KP8, K_KP2, K_KP4, K_KP6)
-        numpad_directions = {K_KP8: 'up', K_KP2: 'down', K_KP4: 'left', K_KP6: 'right'}
+        numpad_keys_directions = {K_KP8: 'up', K_KP2: 'down', K_KP4: 'left', K_KP6: 'right'}
 
         field_modify_keys = arrow_keys + numpad_arrow_keys + (
             K_END, K_HOME,
@@ -244,6 +245,8 @@ class Application(object):
 
                     elif event.key == K_BACKSPACE:
                         self.clear_board()
+                        started = False
+                        self.set_caption(False)
 
                     elif event.key == K_RETURN:
                         self.random_fill()
@@ -263,24 +266,26 @@ class Application(object):
                         config = self.config
                         alife_cells = None
 
-                        if event.key in arrow_keys:
+                        if event.key in numpad_arrow_keys:
+                            direction = numpad_keys_directions[event.key]
                             if pygame.key.get_mods() & KMOD_SHIFT:
                                 delta = 10
                                 bound = 10
                             else:
                                 delta = 1
                                 bound = 2
-                            if event.key == K_UP and rows > bound:
+
+                            if direction == 'up' and rows > bound:
                                 rows -= delta
-                            elif event.key == K_DOWN:
+                            elif direction == 'down':
                                 rows += delta
-                            elif event.key == K_LEFT and cols > bound:
+                            elif direction == 'left' and cols > bound:
                                 cols -= delta
-                            elif event.key == K_RIGHT:
+                            elif direction == 'right':
                                 cols += delta
 
-                        if event.key in numpad_arrow_keys:
-                            alife_cells = self.move_cells(numpad_directions[event.key])
+                        if event.key in arrow_keys:
+                            alife_cells = self.move_cells(arrow_keys_directions[event.key])
                             self.clear_board()
 
                         elif event.key == K_MINUS and config['CELL_SIZE'] > 1:

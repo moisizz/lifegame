@@ -7,8 +7,8 @@ Controls:
 1) Space to start/stop game
 2) Click left mouse button and drag to draw alife cells
 3) Click right mouse and drag to draw dead cells
-4) Arrows: left/right - decrease/increase board width, up/down - decrease/increase board height. If pressed with shift - chage would be ten times larger
-5) Numpad arrows - move cells on field 
+4) Arrows keys - move cells on field
+5) Numpad arrows: left/right - decrease/increase board width, up/down - decrease/increase board height. If pressed with shift - chage would be ten times larger
 6) Backspace - clear board (pause not necessary)
 7) Enter - clear and fill board with random alife cells (pause not necessary)
 8) Pressing numbers from 1 to 9 fill board with lattice with step equals to pressed number (pause not necessary)
