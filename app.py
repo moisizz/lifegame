@@ -1,10 +1,10 @@
 # coding: utf-8
-import random, pygame, sys, math
+import random, pygame, sys, math, os
 from pygame import Surface
 from pygame.locals import *
 from life import LifeGame
 import itertools
-from Tkinter import Tk, Button, Entry, Text, StringVar, END
+from Tkinter import Tk
 import tkFileDialog
 import pickle
 import base64
@@ -17,6 +17,7 @@ WHITE = (255, 255, 255)
 
 class Application(object):
     def __init__(self):
+        self.last_dir = None
         default_rows = 50
         default_cols = 50
 
@@ -101,9 +102,12 @@ class Application(object):
         }
 
         root = Tk()
+        root.withdraw()
         encoded = base64.b64encode(pickle.dumps(state))
 
         options = {}
+        if self.last_dir:
+            options['initialdir'] = self.last_dir
         options['defaultextension'] = '.txt'
         options['filetypes'] = [('text files', '.txt')]
         options['initialfile'] = 'board.txt'
@@ -111,6 +115,7 @@ class Application(object):
         options['title'] = u'Сохранить доску'
 
         filename = tkFileDialog.asksaveasfilename(**options)
+        self.last_dir = os.path.dirname(filename)
 
         if filename:
             state_file = open(filename, 'w')
@@ -121,8 +126,11 @@ class Application(object):
 
     def restore_state(self):
         root = Tk()
+        root.withdraw()
 
         options = {}
+        if self.last_dir:
+            options['initialdir'] = self.last_dir
         options['multiple'] = False
         options['defaultextension'] = '.txt'
         options['filetypes'] = [('text files', '.txt')]
@@ -130,6 +138,7 @@ class Application(object):
         options['title'] = u'Восстановить доску'
 
         filename = tkFileDialog.askopenfilename(**options)
+        self.last_dir = os.path.dirname(filename)
         root.destroy()
 
         if filename:
